@@ -206,14 +206,13 @@ public class Parser {
         } else if (match(TokenType.EXPENSE)) {
             expenseStmt();
         } else if (match(TokenType.LIMIT)) {
-            // TODO: limitStmt();
-            throw error(current(), "LIMIT statements not yet implemented");
+            limitStmt();
         } else if (match(TokenType.PRINT)) {
-            // TODO: printStmt();
-            throw error(current(), "PRINT statements not yet implemented");
+            printStmt();
+        } else if (match(TokenType.IF)) {
+            ifStmt();
         } else if (check(TokenType.IDENTIFIER)) {
-            // TODO: assignmentStmt();
-            throw error(current(), "Assignment statements not yet implemented");
+            assignment();
         } else {
             throw error(current(), "Unexpected statement");
         }
@@ -273,29 +272,141 @@ public class Parser {
         }
     }
     
-    // Example method structure - you'll add these based on your grammar:
+    /**
+     * Parses a limit statement.
+     * Grammar: limit STRING to MONEY
+     * Example: limit "food" to 1500 TRY
+     */
+    private void limitStmt() {
+        // Expect a STRING (category name)
+        Token categoryToken = expect(TokenType.STRING, "Expected category name after 'limit'");
+        String category = (String) categoryToken.getValue();
+        
+        // Expect "to" keyword
+        expect(TokenType.TO, "Expected 'to' after category name");
+        
+        // Expect a MONEY token
+        Token moneyToken = expect(TokenType.MONEY, "Expected money amount after 'to'");
+        Money amount = (Money) moneyToken.getValue();
+        
+        // Print the parsed statement (with indentation)
+        System.out.printf("  Limit: \"%s\" to %.2f %s%n", 
+            category, amount.getAmount(), amount.getCurrency());
+    }
     
-    // private void parseBudget() {
-    //     expect(TokenType.BUDGET, "Expected 'budget' keyword");
-    //     Token name = expect(TokenType.IDENTIFIER, "Expected budget name");
-    //     expect(TokenType.LEFT_BRACE, "Expected '{' after budget name");
-    //     
-    //     // Parse budget body...
-    //     
-    //     expect(TokenType.RIGHT_BRACE, "Expected '}' at end of budget");
-    // }
+    /**
+     * Parses a print statement.
+     * Grammar: print IDENTIFIER
+     * Example: print remaining
+     */
+    private void printStmt() {
+        // Expect an IDENTIFIER
+        Token varToken = expect(TokenType.IDENTIFIER, "Expected variable name after 'print'");
+        String varName = varToken.getText();
+        
+        // Print the parsed statement (with indentation)
+        System.out.printf("  Print: %s%n", varName);
+    }
     
-    // private void parseStatement() {
-    //     if (match(TokenType.INCOME)) {
-    //         parseIncome();
-    //     } else if (match(TokenType.EXPENSE)) {
-    //         parseExpense();
-    //     } else if (match(TokenType.LIMIT)) {
-    //         parseLimit();
-    //     } else if (match(TokenType.PRINT)) {
-    //         parsePrint();
-    //     } else {
-    //         throw error(current(), "Unexpected statement");
-    //     }
-    // }
+    /**
+     * Parses an if statement.
+     * Grammar: if EXPR then STATEMENT* [else STATEMENT*] end
+     * Example: if balance > 1000 TRY then print "good" else print "bad" end
+     */
+    private void ifStmt() {
+        // Parse the condition expression
+        System.out.print("  If: ");
+        expression();
+        System.out.println();
+        
+        // Expect "then" keyword
+        expect(TokenType.THEN, "Expected 'then' after condition");
+        
+        // Parse statements in the "then" block
+        System.out.println("    Then:");
+        while (!check(TokenType.ELSE) && !check(TokenType.END) && !isAtEnd()) {
+            System.out.print("    ");
+            statement();
+        }
+        
+        // Optional "else" block
+        if (match(TokenType.ELSE)) {
+            System.out.println("    Else:");
+            while (!check(TokenType.END) && !isAtEnd()) {
+                System.out.print("    ");
+                statement();
+            }
+        }
+        
+        // Expect "end" keyword
+        expect(TokenType.END, "Expected 'end' to close if statement");
+    }
+    
+    /**
+     * Parses an assignment statement.
+     * Grammar: IDENTIFIER = EXPR
+     * Example: remaining = 1500 TRY
+     */
+    private void assignment() {
+        // Get the variable name
+        Token varToken = expect(TokenType.IDENTIFIER, "Expected variable name");
+        String varName = varToken.getText();
+        
+        // Expect "=" operator
+        expect(TokenType.ASSIGN, "Expected '=' after variable name");
+        
+        // Parse the expression on the right side
+        System.out.print("  Assignment: " + varName + " = ");
+        expression();
+        System.out.println();
+    }
+    
+    /**
+     * Parses an expression (simplified for Part 1).
+     * For now, just consumes tokens until we hit a statement terminator.
+     * In Part 2, you'll implement proper expression parsing with operators.
+     */
+    private void expression() {
+        // For Part 1, just consume the expression tokens and print them
+        // This is a simplified version - Part 2 will have proper expression parsing
+        
+        if (check(TokenType.MONEY)) {
+            Token moneyToken = advance();
+            Money amount = (Money) moneyToken.getValue();
+            System.out.print(amount.getAmount() + " " + amount.getCurrency());
+        } else if (check(TokenType.NUMBER)) {
+            Token numToken = advance();
+            System.out.print(numToken.getValue());
+        } else if (check(TokenType.STRING)) {
+            Token strToken = advance();
+            System.out.print("\"" + strToken.getValue() + "\"");
+        } else if (check(TokenType.IDENTIFIER)) {
+            Token idToken = advance();
+            System.out.print(idToken.getText());
+        } else {
+            throw error(current(), "Expected expression");
+        }
+        
+        // Handle binary operators (simplified)
+        while (match(TokenType.PLUS, TokenType.MINUS, TokenType.MULTIPLY, 
+                     TokenType.DIVIDE, TokenType.GREATER, TokenType.LESS,
+                     TokenType.EQUAL, TokenType.NOT_EQUAL, TokenType.GREATER_EQUAL,
+                     TokenType.LESS_EQUAL)) {
+            Token operator = previous();
+            System.out.print(" " + operator.getText() + " ");
+            
+            // Parse right side
+            if (check(TokenType.MONEY)) {
+                Token moneyToken = advance();
+                Money amount = (Money) moneyToken.getValue();
+                System.out.print(amount.getAmount() + " " + amount.getCurrency());
+            } else if (check(TokenType.NUMBER)) {
+                Token numToken = advance();
+                System.out.print(numToken.getValue());
+            } else if (check(TokenType.IDENTIFIER)) {
+                Token idToken = advance();
+                System.out.print(idToken.getText());
+            }
+        }
+    }
 }
